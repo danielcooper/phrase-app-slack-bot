@@ -1,0 +1,19 @@
+GEM
+  remote: http://rubygems.org/
+  specs:
+    gemoji (2.1.0)
+    phraseapp-ruby (1.2.4)
+    slack-notifier (1.5.1)
+    slop (4.3.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  gemoji
+  phraseapp-ruby
+  slack-notifier
+  slop
+
+BUNDLED WITH
+   1.11.2
