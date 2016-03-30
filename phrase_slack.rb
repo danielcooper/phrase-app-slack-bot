@@ -7,6 +7,7 @@ opts = Slop.parse do |o|
   o.string '-s', '--slack-token', 'Slack API Token'
   o.string '-c', '--channel', 'Channel to post to'
   o.array '--skip-locales', default: []
+  o.array '--skip-projects', default: []
 end
 
 slack_token =  opts["slack-token"]
@@ -21,24 +22,33 @@ client = PhraseApp::Client.new(credentials)
 projects, error = client.projects_list(1, 10)
 
 locale_status = []
+locale_totals = {}
 
 projects.each do |project|
-  locales, error = client.locales_list(project.id, 1, 50)
-  locales.each do |locale|
-    unless opts['skip-locales'].include? locale.name
-      untranslated_keys, error = client.keys_search(project.id, 1, 100, PhraseApp::RequestParams::KeysSearchParams.new(locale_id: locale.id, q:'translated:false'))
-      if untranslated_keys.count > 10
-        emotion = 'sob'
-      elsif untranslated_keys.count == 0
-        emotion = 'relieved'
-      else
-        emotion = 'worried'
+  unless opts['skip-projects'].include? project.id
+    locales, error = client.locales_list(project.id, 1, 50)
+    locales.each_with_index do |locale, i|
+      unless opts['skip-locales'].include? locale.name
+        untranslated_keys, error = client.keys_search(project.id, 1, 100, PhraseApp::RequestParams::KeysSearchParams.new(locale_id: locale.id, q:'translated:false'))
+        locale_totals[locale.name] = {} unless locale_totals.has_key?(locale.name)
+        locale_totals[locale.name]['total'] = 0 unless locale_totals[locale.name].has_key?('total')
+        locale_totals[locale.name]['total'] += untranslated_keys.count
+        locale_totals[locale.name]['projects'] = {} unless locale_totals[locale.name].has_key? 'projects'
+        locale_totals[locale.name]['projects'][project.name] =  untranslated_keys.count
       end
-      locale_status << "#{locale.name} has #{untranslated_keys.count} untranslated strings in PhraseApp. #{Emoji.find_by_alias(emotion).raw}"
+    end
+  end
+end
+
+output = []
+locale_totals.each do |k,v|
+  if v['total'] > 0
+    output << ":#{k.downcase}: *#{k}*: #{v['total']} untranslated strings"
+    v['projects'].each do |pk, pv|
+      output << "_#{pv} in #{pk}_" if pv > 0
     end
   end
 end
 
 notifier = Slack::Notifier.new slack_token, channel: channel, username: 'PhraseSlack'
-
-notifier.ping locale_status.join("\n")
+notifier.ping output.join("\n")
