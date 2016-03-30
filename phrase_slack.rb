@@ -41,12 +41,9 @@ projects.each do |project|
 end
 
 output = []
-locale_totals.each do |k,v|
+locale_totals.sort_by{ |k, v| v['total'] * -1 }.to_h.each do |k,v|
   if v['total'] > 0
-    output << ":#{k.downcase}: *#{k}*: #{v['total']} untranslated strings"
-    v['projects'].each do |pk, pv|
-      output << "_#{pv} in #{pk}_" if pv > 0
-    end
+    output << ":#{k.downcase}: *#{k}*: #{v['total']} untranslated strings (#{v['projects'].keep_if{|pk,pv| pv > 0}.keys.join(', ')})"
   end
 end
 
